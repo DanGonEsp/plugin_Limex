@@ -60,8 +60,10 @@ if(USE_PYBIND11)
 	#ug4pybind_add_module(pylimex ${myPluginSources} ${myLibraries})
 	target_link_libraries (pylimex PRIVATE ${myLibraries})
 	if(APPLE)
-    	set_target_properties(pylimex PROPERTIES INSTALL_RPATH "@loader_path:@loader_path/../lib")
-	elseif(LINUX)
+    	set_target_properties(pylimex PROPERTIES 
+    		INSTALL_RPATH "@loader_path/../lib"
+    		BUILD_WITH_INSTALL_RPATH TRUE)
+	elseif(LINUX AND NOT APPLE)
 		set_target_properties(pylimex PROPERTIES INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
 	endif()
 	install(TARGETS pylimex LIBRARY DESTINATION ug4py COMPONENT pymodules)
