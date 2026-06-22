@@ -53,12 +53,18 @@ if(USE_PYBIND11)
 	add_library(${pluginName} STATIC ${SOURCES})
 	
 	SET(myPluginSources limex_pybind.cpp)
-	SET(myLibraries ug4 ${pluginName})
+	SET(myLibraries ${pluginName} ${targetLibraryName}) # targetLibraryName is either ug4 or ug4_s
 	
 	# First argument must match module name in PYBIND11_MODULE call
 	python_add_library(pylimex MODULE  ${myPluginSources} ${SOURCES} WITH_SOABI)
 	#ug4pybind_add_module(pylimex ${myPluginSources} ${myLibraries})
-	target_link_libraries (pylimex PRIVATE ${pluginName} ug4_s)
-	set_target_properties(pylimex PROPERTIES INSTALL_RPATH "$ORIGIN/..:$ORIGIN/../../../lib")
+	target_link_libraries (pylimex PRIVATE ${myLibraries})
+	if(APPLE)
+    	set_target_properties(pylimex PROPERTIES 
+    		INSTALL_RPATH "@loader_path/../lib"
+    		BUILD_WITH_INSTALL_RPATH TRUE)
+	elseif(LINUX AND NOT APPLE)
+		set_target_properties(pylimex PROPERTIES INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
+	endif()
 	install(TARGETS pylimex LIBRARY DESTINATION ug4py COMPONENT pymodules)
 endif(USE_PYBIND11)
