@@ -372,6 +372,7 @@ public:
 		void set_asymptotic_order(size_t q) { m_asymptotic_order = q;}
 
 		void set_start_step(size_t step){m_limex_step=step;}
+		size_t get_step(){return m_limex_step;}
 
 		/// add an error estimator
 		void add_error_estimator(SmartPtr<error_estim_type> spErrorEstim)
@@ -1186,13 +1187,26 @@ apply(SmartPtr<grid_function_type> u, number t1, ConstSmartPtr<grid_function_typ
 
 			// working on last row => increase order
 			//if (ntest == q+1) ntest++;
+			
+
+			m_vThreadData[0].get_solver()->step_update();
+			
+			UG_LOG("/n"<< std::endl);
+			UG_LOG("---------------------------------------------------"<< std::endl);
+			UG_LOG("+++ LimexTimestep +++" << m_limex_step-1 << " ENDED"<< std::endl);
+			UG_LOG("---------------------------------------------------"<< std::endl);
+			UG_LOG("/n/n"<< std::endl);
+			
+			
 		}
 		else
 		{
 			// DISCARD time step
+			UG_LOG("/n"<< std::endl);
 			UG_LOG("+++ LimexTimestep +++" << m_limex_step << " FAILED" << std::endl);
 			UG_LOG("               :\t time \t dt (failed) \t dt (curr) \teps=\t" << epsmin <<"\t(tol="<<m_tol<<")\terr="<<err<< std::endl);
 			UG_LOG("LIMEX-REJECTING:\t" << t <<"\t"<< dt << "\t" << dtcurr <<std::endl);
+			UG_LOG("/n/n"<< std::endl);
 
 			itime_integrator_type::notify_rewind_step(ubest, m_limex_step, t+dt, dt);
 
