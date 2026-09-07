@@ -353,7 +353,10 @@ public:
 		  m_spCostStrategy(make_sp<LimexDefaultCost>(new LimexDefaultCost())),
 		  m_spBanachSpace(new AlgebraicSpace<grid_function_type>()),              // default algebraic space
 		  m_bInterrupt(false),
-		  m_limex_step(1)
+		  m_limex_step(1),
+		  m_limex_total_step(0),
+		  m_limex_success_step(0),
+		  m_limex_fail_step(0)
 		{
 			m_vThreadData.reserve(m_nstages);
 			m_vSteps.reserve(m_nstages);
@@ -373,6 +376,9 @@ public:
 
 		void set_start_step(size_t step){m_limex_step=step;}
 		size_t get_step(){return m_limex_step;}
+		size_t get_total_steps()   { return m_limex_total_step; }
+		size_t get_success_steps() { return m_limex_success_step; }
+		size_t get_failed_steps()  { return m_limex_fail_step; }
 
 		/// add an error estimator
 		void add_error_estimator(SmartPtr<error_estim_type> spErrorEstim)
@@ -588,6 +594,9 @@ protected:
 
 		bool m_bInterrupt;
 		int m_limex_step;						///<Current counter
+		size_t m_limex_total_step;				///<Total steps
+		size_t m_limex_success_step;			///<Success counter
+		size_t m_limex_fail_step;				///<Fail counter
 
 
 };
@@ -829,6 +838,10 @@ apply(SmartPtr<grid_function_type> u, number t1, ConstSmartPtr<grid_function_typ
 	m_bInterrupt = false;
 	//bool bProbation = false;
 	bool bAsymptoticReduction = false;
+	
+	m_limex_total_step = 0;
+	m_limex_success_step = 0;
+	m_limex_fail_step = 0;
 
 	const size_t nSwitchHistory=16;
 	const size_t nSwitchLookBack=5;
@@ -838,6 +851,7 @@ apply(SmartPtr<grid_function_type> u, number t1, ConstSmartPtr<grid_function_typ
 	while ((t < t1) && ((t1-t) > base_type::m_precisionBound))
 	{
 		int err = 0;
+		m_limex_total_step++;
 
 		//UG_DLOG(LIB_LIMEX, 5, "+++ LimexTimestep +++" << limex_step << "\n");
 		UG_LOG("+++ LimexTimestep +++" << m_limex_step << "\n");
@@ -1146,6 +1160,8 @@ apply(SmartPtr<grid_function_type> u, number t1, ConstSmartPtr<grid_function_typ
 			UG_LOG("+++ LimexTimestep +++" << m_limex_step << " ACCEPTED"<< std::endl);
 			UG_LOG("               :\t time \t dt (success) \t dt (pred) \tq=\t order (curr)" << qcurr+1 << std::endl);
 			UG_LOG("LIMEX-ACCEPTING:\t" << t <<"\t"<< dt << "\t" << dtcurr << "\tq=\t" << qcurr+1 << std::endl);
+			
+			m_limex_success_step++;
 
 			// update PID controller
 			/*qlast = qcurr;
@@ -1209,6 +1225,8 @@ apply(SmartPtr<grid_function_type> u, number t1, ConstSmartPtr<grid_function_typ
 			UG_LOG("\n\n"<< std::endl);
 
 			itime_integrator_type::notify_rewind_step(ubest, m_limex_step, t+dt, dt);
+			
+			m_limex_fail_step++;
 
 		}
 
