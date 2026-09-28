@@ -1204,8 +1204,6 @@ apply(SmartPtr<grid_function_type> u, number t1, ConstSmartPtr<grid_function_typ
 			// working on last row => increase order
 			//if (ntest == q+1) ntest++;
 			
-
-			m_vThreadData[0].get_solver()->step_update();
 			
 			UG_LOG("\n"<< std::endl);
 			UG_LOG("---------------------------------------------------"<< std::endl);

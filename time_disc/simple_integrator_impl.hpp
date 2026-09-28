@@ -103,6 +103,9 @@ bool SimpleTimeIntegrator<TDomain, TAlgebra>::apply_single_stage
 			continue;
 		}
 		//UG_LOG("m_spSolTimeSeries.size="<< m_spSolTimeSeries->size());
+		
+		// update solver before defect/Jacobian assembly
+		solver.step_update();
 
 		// execute step
 		if (solver.apply(*u1))
