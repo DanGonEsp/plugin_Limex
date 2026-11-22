@@ -309,7 +309,7 @@ class SupErrorEvaluator
 		using IComponentSpace<TGridFunction>::norm;
 		using IComponentSpace<TGridFunction>::distance;
 
-		double norm(SmartPtr<TGridFunction> uFine) 
+		double norm(SmartPtr<TGridFunction> uFine)
 		{ return norm(*uFine); }
 
 		double norm(TGridFunction& uFine)
@@ -355,10 +355,10 @@ class SupErrorEvaluator
 			return maxVal;
 		}
 
-		double norm2(TGridFunction& uFine) 
+		double norm2(TGridFunction& uFine)
 		{ double norm1 = norm(uFine); return norm1*norm1;}
 
-		double distance(TGridFunction& uFine, TGridFunction& uCoarse) 
+		double distance(TGridFunction& uFine, TGridFunction& uCoarse)
 		{
 			UG_COND_THROW(uFine.dof_distribution().get() != uCoarse.dof_distribution().get(),
 				"Coarse and fine solutions do not have the same underlying dof distro.");
@@ -440,8 +440,8 @@ class DeltaSquareIntegrand
 	public:
 	/// constructor
 		DeltaSquareIntegrand(SmartPtr<UserData<TDataIn, worldDim> > spData,
-		                const TGridFunction* pGridFct1, const TGridFunction* pGridFct2,
-		                number time)
+						const TGridFunction* pGridFct1, const TGridFunction* pGridFct2,
+						number time)
 		: m_spData(spData), m_pGridFct1(pGridFct1), m_pGridFct2(pGridFct2), m_time(time)
 		{
 			m_spData->set_function_pattern(pGridFct1->function_pattern());
@@ -463,12 +463,12 @@ class DeltaSquareIntegrand
 		void get_values(TDataIn vValue[],
 					  ConstSmartPtr<UserData<TDataIn, worldDim> > spData,
 					  const TGridFunction& gridFct,
-		              const MathVector<worldDim> vGlobIP[],
-		              GridObject* pElem,
-		              const MathVector<worldDim> vCornerCoords[],
-		              const MathVector<elemDim> vLocIP[],
-		              const MathMatrix<elemDim, worldDim> vJT[],
-		              const size_t numIP)
+					  const MathVector<worldDim> vGlobIP[],
+					  GridObject* pElem,
+					  const MathVector<worldDim> vCornerCoords[],
+					  const MathVector<elemDim> vLocIP[],
+					  const MathMatrix<elemDim, worldDim> vJT[],
+					  const size_t numIP)
 		{
 			//	collect local solution, if required
 			if(spData->requires_grid_fct())
@@ -509,12 +509,12 @@ class DeltaSquareIntegrand
 		/// \copydoc IIntegrand::values
 			template <int elemDim>
 			void evaluate(number vValue[],
-			              const MathVector<worldDim> vGlobIP[],
-			              GridObject* pElem,
-			              const MathVector<worldDim> vCornerCoords[],
-			              const MathVector<elemDim> vLocIP[],
-			              const MathMatrix<elemDim, worldDim> vJT[],
-			              const size_t numIP)
+						  const MathVector<worldDim> vGlobIP[],
+						  GridObject* pElem,
+						  const MathVector<worldDim> vCornerCoords[],
+						  const MathVector<elemDim> vLocIP[],
+						  const MathMatrix<elemDim, worldDim> vJT[],
+						  const size_t numIP)
 			{
 				std::vector<TDataIn> v1(numIP);
 
@@ -567,13 +567,13 @@ public:
 	using IComponentSpace<TGridFunction>::norm;
 	using IComponentSpace<TGridFunction>::distance;
 
-	double norm2(TGridFunction& uFine) 
+	double norm2(TGridFunction& uFine)
 	{
 		DeltaSquareIntegrand<TDataInput, TGridFunction> spIntegrand(m_userData, &uFine, NULL, 0.0);
 		return IntegrateSubsets(spIntegrand, uFine, base_type::m_ssNames, base_type::m_quadorder, "best");
 	}
 
-	double distance2(TGridFunction& uFine, TGridFunction& uCoarse) 
+	double distance2(TGridFunction& uFine, TGridFunction& uCoarse)
 	{
 		DeltaSquareIntegrand<TDataInput, TGridFunction> spIntegrand(m_userData, &uFine, &uCoarse, 0.0);
 		std::cerr << "uFine="<<(void*) (&uFine) << ", uCoarse="<< (void*) (&uCoarse) << std::endl;
@@ -887,6 +887,7 @@ public:
 	typedef GridFunction<TDomain, TAlgebra> grid_function_type;
 	typedef IComponentSpace<grid_function_type> subspace_type;
 	typedef CompositeSpace<grid_function_type> composite_type;
+	typedef std::pair<SmartPtr<subspace_type>, number> relaxed_subspace_type;
 
 	// constructor
 	CompositeGridFunctionEstimator() : base_type(), m_strictRelativeError(0) {}
@@ -904,7 +905,14 @@ public:
 
 	// add (single subspace)
 	void add(SmartPtr<subspace_type> spSubspace)
-	{  m_spSubspaces.push_back(spSubspace); }
+	{ add(spSubspace, 1.0); }
+
+	void add(SmartPtr<subspace_type> spSubspace, number relaxation)
+	{
+		UG_COND_THROW(!(relaxation > 0.0),
+					  "Relaxation factor must be positive.");
+		m_spSubspaces.push_back(std::make_pair(spSubspace, relaxation));
+	}
 
 	// add subspaces (from container)
 	void add(SmartPtr<composite_type> spCompositeSpace)
@@ -913,7 +921,7 @@ public:
 		const std::vector<weighted_obj_type> &spaces = spCompositeSpace->get_subspaces();
 		for (typename std::vector<weighted_obj_type>::const_iterator it = spaces.begin(); it != spaces.end(); ++it)
 		{
-			m_spSubspaces.push_back(it->first);
+			add(it->first);
 		}
 	}
 
@@ -942,18 +950,19 @@ public:
 		double max_rel = 0.0;
 		double max_rel_e4=0.0;
 
-		for (typename std::vector<SmartPtr<subspace_type> >::iterator it = m_spSubspaces.begin();
+		for (typename std::vector<relaxed_subspace_type>::iterator it = m_spSubspaces.begin();
 				it!= m_spSubspaces.end(); ++it)
 		{
 			// use sub-diagonal error estimator (i.e. multiply with alpha)
-			std::string cmp=(*it)->function_name();
+			std::string cmp=it->first->function_name();
 			size_t cmp_id= uFine->fct_id_by_name(cmp.c_str());
-			double cmp_e2 = (alpha*alpha) * (*it)->distance2(*uFine, *uCoarse);
-			double cmp_u2 = (*it)->norm2(*uFine);
-			vcmp_e2[cmp_id]+=cmp_e2;
+			double cmp_e2 = (alpha*alpha) * it->first->distance2(*uFine, *uCoarse);
+			double cmp_u2 = it->first->norm2(*uFine);
+			const double relax2 = it->second * it->second;
+			vcmp_e2[cmp_id]+=cmp_e2/relax2;
 			vcmp_u2[cmp_id]+=cmp_u2;
-			cmp_rel=std::max(cmp_rel,(cmp_e2==0)?0:cmp_e2/(cmp_u2 + SMALL/ (1.0+cmp_e2+cmp_u2)));
-			cmp_rel4=std::max(cmp_rel4,(cmp_e2==0)?0:cmp_e2/std::sqrt(cmp_u2*cmp_u2+SMALL*SMALL));
+			cmp_rel=std::max(cmp_rel,(cmp_e2==0)?0:(cmp_e2/relax2)/(cmp_u2 + SMALL/ (1.0+cmp_e2+cmp_u2)));
+			cmp_rel4=std::max(cmp_rel4,(cmp_e2==0)?0:(cmp_e2/relax2)/std::sqrt(cmp_u2*cmp_u2+SMALL*SMALL));
 			UG_LOGN("cmp=" << cmp << "(id=" << cmp_id << "):\tui-2=" << cmp_u2 << "\tei-2=" <<  cmp_e2<<
 					"\tratio2="<< (vcmp_e2[cmp_id])/(vcmp_u2[cmp_id]) <<
 					"\tmax.rel(squared)="<< cmp_rel<<"\tmax.rel(ei4)="<<cmp_rel4
@@ -987,14 +996,14 @@ public:
 								base_type::m_est=sqrt(enorm2/std::max(unorm2, SMALL*enorm2)); /* absolute: */
 								break;
 					   case 1:
-					   			base_type::m_est=sqrt(cmp_rel); /* relative max: max(e2/(u2+SMALL/(1+e2+u2))) for each cmp on each subset */
+								base_type::m_est=sqrt(cmp_rel); /* relative max: max(e2/(u2+SMALL/(1+e2+u2))) for each cmp on each subset */
 								break;
 					   case 2:
-					   			base_type::m_est=sqrt(cmp_rel4); /* relative max: max(e2/sqrt(u2*u2+SMALL*SMALL)) for each cmp on each subset*/
+								base_type::m_est=sqrt(cmp_rel4); /* relative max: max(e2/sqrt(u2*u2+SMALL*SMALL)) for each cmp on each subset*/
 								break;
 					   case 3:
 								base_type::m_est=sqrt(max_rel); /* relative max based on cmp: max(sum_si e2/( sum_si u2+SMALL/(1+sum_si e2+ sum_si u2))) for each cmp on whole domain.*/
-							 	break;
+								break;
 					   case 4:
 								base_type::m_est=sqrt(max_rel_e4); /* relative max based on cmp: max(sum_si e2/sqrt( sum_si u2* sum_si u2+SMALL*SMALL)) for each cmp on whole domain.*/
 								 break;
@@ -1012,17 +1021,17 @@ public:
 	{
 		std::stringstream ss;
 		ss << "CompositeGridFunctionEstimator:\n";
-		for (typename std::vector<SmartPtr<subspace_type> >::const_iterator it = m_spSubspaces.begin();
+		for (typename std::vector<relaxed_subspace_type>::const_iterator it = m_spSubspaces.begin();
 				it!= m_spSubspaces.end(); ++it)
 		{
-			ss << (*it)->config_string();
+			ss << it->first->config_string() << " relaxation=" << it->second << "\n";
 		}
 		return ss.str();
 	}
 
 protected:
 
-	std::vector<SmartPtr<subspace_type> > m_spSubspaces;
+	std::vector<relaxed_subspace_type> m_spSubspaces;
 	//bool m_strictRelativeError;
 	int m_strictRelativeError;
 };
@@ -1109,7 +1118,7 @@ class AitkenNevilleTimex
 		 * T_N1        T_NN
 		 *
 		 * for T_ik
- 		 * */
+		 * */
 		void apply(size_t nstages, bool with_error=true)
 		{
 			UG_ASSERT(nstages <= m_solution.size(),
@@ -1158,7 +1167,7 @@ class AitkenNevilleTimex
 					{
 						// standard case
 						VecScaleAdd(*solfine, (1.0+1.0/scaling), *solfine,
-										      -(1.0/scaling), *solcoarse);
+											  -(1.0/scaling), *solcoarse);
 
 					}
 				} // rows i
