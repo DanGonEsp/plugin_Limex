@@ -1251,6 +1251,10 @@ apply(SmartPtr<grid_function_type> u, number t1, ConstSmartPtr<grid_function_typ
 
 	} // time integration loop
 
+	// Preserve the predicted time step for the next apply() call.
+	this->set_time_step(dtcurr);
+
+	UG_LOG("LIMEX-NEXT-DT:\t" << dtcurr << std::endl);
 	dispose_integrator_threads();
 
 	return true;
